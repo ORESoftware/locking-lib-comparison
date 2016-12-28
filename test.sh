@@ -6,6 +6,7 @@ LIBS_DIR=$(cd $(dirname "$0")/libraries && pwd)
 echo "libs dir => $LIBS_DIR"
 
 
+# SERIAL LOCK/UNLOCK CYCLES
 for d in "$LIBS_DIR"/* ; do
      echo " "
      echo "running speed-test in the following dir => $d"
@@ -14,6 +15,7 @@ for d in "$LIBS_DIR"/* ; do
 done
 
 
+# PARALLEL LOCK/UNLOCK CYCLES
 for d in "$LIBS_DIR"/* ; do
      echo " "
      echo "running speed-test in the following dir => $d"
