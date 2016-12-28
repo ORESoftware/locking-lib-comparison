@@ -1,0 +1,25 @@
+{
+  "name": "locking-lib-comparison",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "async": "^2.1.4",
+    "live-mutex": "0.0.10005",
+    "lockfile": "^1.0.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "suman"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ORESoftware/locking-lib-comparison.git"
+  },
+  "author": "Olegzandr",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ORESoftware/locking-lib-comparison/issues"
+  },
+  "homepage": "https://github.com/ORESoftware/locking-lib-comparison#readme"
+}
