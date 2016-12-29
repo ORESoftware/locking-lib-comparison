@@ -5,7 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "async": "^2.1.4",
-    "live-mutex": "0.0.10005",
+    "live-mutex": "^0.0.10006",
     "lockfile": "^1.0.3"
   },
   "devDependencies": {},
