@@ -1,0 +1,167 @@
+name: Upstream smoke
+
+on:
+  schedule:
+    - cron: "15 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-mutex-node:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: live-mutex
+            repository: ORESoftware/live-mutex
+            ref: dev
+            install: ci
+          - name: live-mutex.distributed
+            repository: ORESoftware/live-mutex.distributed
+            ref: main
+            install: ci
+          - name: live-mutex-examples
+            repository: ORESoftware/live-mutex-examples
+            ref: master
+            install: install
+
+    steps:
+      - name: Check out ${{ matrix.repository }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Install locked dependencies
+        if: matrix.install == 'ci'
+        run: npm ci
+
+      - name: Install example dependencies
+        if: matrix.install == 'install'
+        run: npm install --ignore-scripts
+
+      - name: Type-check implementation
+        if: matrix.name != 'live-mutex-examples'
+        run: npm run compile:check
+
+      - name: Exercise lock and unlock API
+        if: matrix.name != 'live-mutex-examples'
+        run: npx --no-install ts-node test/quick-verification-test.ts
+
+      - name: Compile examples
+        if: matrix.name == 'live-mutex-examples'
+        run: npm run tsc
+
+  live-mutex-rust:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: live-mutex-rs
+            repository: ORESoftware/live-mutex-rs
+            ref: dev
+          - name: live-mutex-mills.rs
+            repository: ORESoftware/live-mutex-mills.rs
+            ref: main
+
+    steps:
+      - name: Check out ${{ matrix.repository }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.ref }}
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+
+      - name: Test live-mutex-rs
+        if: matrix.name == 'live-mutex-rs'
+        run: cargo test --locked --no-default-features
+
+      - name: Test live-mutex-mills.rs
+        if: matrix.name == 'live-mutex-mills.rs'
+        run: cargo test --locked
+
+  fiducia-node:
+    name: fiducia-node.rs
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out fiducia-node.rs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fiducia-cloud/fiducia-node.rs
+          ref: main
+          path: fiducia-node.rs
+
+      - name: Check out fiducia-routing.rs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fiducia-cloud/fiducia-routing.rs
+          ref: main
+          path: fiducia-routing.rs
+
+      - name: Check out fiducia-interfaces
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fiducia-cloud/fiducia-interfaces
+          ref: main
+          path: fiducia-interfaces
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+
+      - name: Test Fiducia data plane
+        working-directory: fiducia-node.rs
+        run: cargo test --locked
+
+  fiducia-clients:
+    name: fiducia-clients
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out fiducia-clients
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fiducia-cloud/fiducia-clients
+          ref: main
+          path: fiducia-clients
+
+      - name: Check out fiducia-interfaces
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fiducia-cloud/fiducia-interfaces
+          ref: main
+          path: fiducia-interfaces
+
+      - name: Check out fiducia-sync
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fiducia-cloud/fiducia-sync
+          ref: main
+          path: fiducia-sync
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Test TypeScript client
+        working-directory: fiducia-clients/clients/ts
+        run: |
+          npm ci --ignore-scripts
+          npm test
+          npm run typecheck
+
+      - name: Test Python client
+        working-directory: fiducia-clients/clients/python
+        run: python3 -m unittest fiducia_test.py

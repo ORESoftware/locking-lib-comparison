@@ -1,0 +1,109 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      live_mutex_url:
+        description: HTTP base URL for live-mutex or live-mutex.distributed
+        required: false
+        type: string
+      live_mutex_rs_url:
+        description: HTTP base URL for live-mutex-rs
+        required: false
+        type: string
+      live_mutex_mills_url:
+        description: HTTP base URL for live-mutex-mills.rs
+        required: false
+        type: string
+      fiducia_url:
+        description: HTTP base URL for fiducia.cloud
+        required: false
+        type: string
+      fiducia_org_id:
+        description: Organization ID for a direct fiducia-node.rs endpoint
+        required: false
+        type: string
+      duration_ms:
+        description: Measured milliseconds per target
+        required: true
+        default: "10000"
+        type: string
+      concurrency:
+        description: Concurrent workers
+        required: true
+        default: "16"
+        type: string
+      keys:
+        description: Lock-key cardinality
+        required: true
+        default: "256"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Run selected benchmarks
+        env:
+          LIVE_MUTEX_URL: ${{ inputs.live_mutex_url }}
+          LIVE_MUTEX_RS_URL: ${{ inputs.live_mutex_rs_url }}
+          LIVE_MUTEX_MILLS_URL: ${{ inputs.live_mutex_mills_url }}
+          FIDUCIA_URL: ${{ inputs.fiducia_url }}
+          FIDUCIA_BENCH_TOKEN: ${{ secrets.FIDUCIA_BENCH_TOKEN }}
+          FIDUCIA_INTERNAL_AUTH: ${{ secrets.FIDUCIA_INTERNAL_AUTH }}
+          FIDUCIA_ORG_ID: ${{ inputs.fiducia_org_id }}
+          DURATION_MS: ${{ inputs.duration_ms }}
+          CONCURRENCY: ${{ inputs.concurrency }}
+          KEYS: ${{ inputs.keys }}
+        run: |
+          args=(
+            --duration-ms "$DURATION_MS"
+            --concurrency "$CONCURRENCY"
+            --keys "$KEYS"
+            --json
+          )
+          if [[ -n "$LIVE_MUTEX_URL" ]]; then
+            args+=(--target "live-mutex=live-mutex-http=$LIVE_MUTEX_URL")
+          fi
+          if [[ -n "$LIVE_MUTEX_RS_URL" ]]; then
+            args+=(--target "live-mutex-rs=live-mutex-rs-http=$LIVE_MUTEX_RS_URL")
+          fi
+          if [[ -n "$LIVE_MUTEX_MILLS_URL" ]]; then
+            args+=(--target "live-mutex-mills=live-mutex-mills-http=$LIVE_MUTEX_MILLS_URL")
+          fi
+          if [[ -n "$FIDUCIA_URL" ]]; then
+            args+=(--target "fiducia=fiducia-http=$FIDUCIA_URL")
+          fi
+          if [[ "${#args[@]}" -eq 7 ]]; then
+            echo "Select at least one endpoint input." >&2
+            exit 2
+          fi
+          if [[ -n "$FIDUCIA_BENCH_TOKEN" ]]; then
+            args+=(--auth-token "$FIDUCIA_BENCH_TOKEN")
+          fi
+          if [[ -n "$FIDUCIA_INTERNAL_AUTH" ]]; then
+            args+=(--fiducia-internal-auth "$FIDUCIA_INTERNAL_AUTH")
+          fi
+          if [[ -n "$FIDUCIA_ORG_ID" ]]; then
+            args+=(--fiducia-org-id "$FIDUCIA_ORG_ID")
+          fi
+          npm run benchmark -- "${args[@]}" > benchmark.json
+
+      - name: Upload benchmark report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: locking-benchmark-${{ github.run_id }}
+          path: benchmark.json
+          if-no-files-found: error
