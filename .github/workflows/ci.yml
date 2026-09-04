@@ -31,6 +31,9 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
+      - name: Install pinned dependencies
+        run: npm ci --ignore-scripts
+
       - name: Run tests
         run: npm test
 
